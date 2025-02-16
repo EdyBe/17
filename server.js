@@ -17,7 +17,7 @@ const cors = require('cors'); // CORS middleware for cross-origin requests
 
 // Initialize Express application
 const app = express();
-const port = 3000; // Server port
+const port = process.env.PORT || 4000;
 
 // Security modules
 const bcrypt = require('bcrypt'); // For password hashing
@@ -557,5 +557,5 @@ app.put('/update-user', async (req, res) => {
     }
 });
 app.listen(port, () => {
-    console.log(`Server is running on http://localhost:${port}`);
+    console.log(`Example app listening on port ${port}`);
 });
