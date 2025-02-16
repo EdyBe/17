@@ -1,4 +1,4 @@
-const s3 = require('./awsS3');
+const { s3, HeadBucketCommand, GetObjectCommand, PutObjectCommand, ListObjectsV2Command, DeleteObjectCommand } = require('./awsS3');
 const bucketName = 'aws-testing-prolerus';
 
 // License Key Management System (in-memory)
@@ -29,7 +29,8 @@ const validLicenseKeys = {
 async function connectToDatabase() {
     try {
         // Verify S3 connectivity
-        await s3.headBucket({ Bucket: bucketName }).promise();
+        const command = new HeadBucketCommand({ Bucket: bucketName });
+        await s3.send(command);
         console.log('Connected successfully to S3 bucket');
         return true;
     } catch (error) {
@@ -47,10 +48,11 @@ async function connectToDatabase() {
 async function createUser(userData) {
     try {
         // Validate email uniqueness
-        const existingUser = await s3.getObject({
+        const getExistingUserCommand = new GetObjectCommand({
             Bucket: bucketName,
             Key: `users/${userData.email}.json`
-        }).promise().catch(() => null);
+        });
+        const existingUser = await s3.send(getExistingUserCommand).catch(() => null);
 
         if (existingUser) {
             throw new Error('Email already in use');
@@ -71,12 +73,13 @@ async function createUser(userData) {
         }
 
         // Store user in S3
-        await s3.putObject({
+        const putUserCommand = new PutObjectCommand({
             Bucket: bucketName,
             Key: `users/${userData.email}.json`,
             Body: JSON.stringify(userData),
             ContentType: 'application/json'
-        }).promise();
+        });
+        await s3.send(putUserCommand);
 
         console.log("User successfully registered:", userData);
         return userData;
@@ -88,16 +91,18 @@ async function createUser(userData) {
 
 async function listUsers() {
     try {
-        const data = await s3.listObjectsV2({
+        const command = new ListObjectsV2Command({
             Bucket: bucketName,
             Prefix: 'users/'
-        }).promise();
+        });
+        const data = await s3.send(command);
 
         const users = await Promise.all(data.Contents.map(async (item) => {
-            const userData = await s3.getObject({
+            const getUserCommand = new GetObjectCommand({
                 Bucket: bucketName,
                 Key: item.Key
-            }).promise();
+            });
+            const userData = await s3.send(getUserCommand);
             return JSON.parse(userData.Body.toString());
         }));
 
@@ -117,10 +122,11 @@ async function listUsers() {
 async function readUser(email) {
     try {
         // Get user data
-        const userData = await s3.getObject({
+        const getUserCommand = new GetObjectCommand({
             Bucket: bucketName,
             Key: `users/${email}.json`
-        }).promise();
+        });
+        const userData = await s3.send(getUserCommand);
 
         const user = JSON.parse(userData.Body.toString());
 
@@ -136,16 +142,18 @@ async function readUser(email) {
 
 async function listVideos(userEmail) {
     try {
-        const data = await s3.listObjectsV2({
+        const listVideosCommand = new ListObjectsV2Command({
             Bucket: bucketName,
             Prefix: `videos/${userEmail}/`
-        }).promise();
+        });
+        const data = await s3.send(listVideosCommand);
 
         const videos = await Promise.all(data.Contents.map(async (item) => {
-            const videoData = await s3.getObject({
+            const getVideoCommand = new GetObjectCommand({
                 Bucket: bucketName,
                 Key: item.Key
-            }).promise();
+            });
+            const videoData = await s3.send(getVideoCommand);
             return JSON.parse(videoData.Body.toString());
         }));
 
@@ -167,10 +175,11 @@ async function listVideos(userEmail) {
 async function updateUser(email, { classCode }, action) {
     try {
         // Get existing user data
-        const userData = await s3.getObject({
+        const command = new GetObjectCommand({
             Bucket: bucketName,
             Key: `users/${email}.json`
-        }).promise();
+        });
+        const userData = await s3.send(command);
         
         const user = JSON.parse(userData.Body.toString());
 
@@ -191,12 +200,13 @@ async function updateUser(email, { classCode }, action) {
         }
 
         // Save updated user data
-        await s3.putObject({
+        const putUserCommand = new PutObjectCommand({
             Bucket: bucketName,
             Key: `users/${email}.json`,
             Body: JSON.stringify(user),
             ContentType: 'application/json'
-        }).promise();
+        });
+        await s3.send(putUserCommand);
 
         return { message: `Class code ${action === 'add' ? 'added' : 'deleted'} successfully!` };
     } catch (error) {
@@ -214,19 +224,21 @@ async function updateUser(email, { classCode }, action) {
 async function deleteUser(email) {
     try {
         // Delete user file
-        await s3.deleteObject({
+        const command = new DeleteObjectCommand({
             Bucket: bucketName,
             Key: `users/${email}.json`
-        }).promise();
+        });
+        await s3.send(command);
 
         // Delete user's videos
         const videos = await listVideos(email);
-        await Promise.all(videos.map(video => 
-            s3.deleteObject({
+        await Promise.all(videos.map(async (video) => {
+            const deleteVideoCommand = new DeleteObjectCommand({
                 Bucket: bucketName,
                 Key: `videos/${email}/${video.fileId}`
-            }).promise()
-        ));
+            });
+            await s3.send(deleteVideoCommand);
+        }));
 
         return { deleted: true };
     } catch (error) {
@@ -253,7 +265,8 @@ async function uploadVideo(videoData) {
         };
 
         // Uploading files to the bucket
-        const s3Response = await s3.upload(params).promise();
+        const command = new PutObjectCommand(params);
+        const s3Response = await s3.send(command);
         console.log('Video uploaded successfully to S3:', s3Response.Location);
 
         return {
