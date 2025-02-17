@@ -10,6 +10,17 @@ const {
 } = require('./emailService'); // Email service functions for password reset
 const multer = require('multer'); // Middleware for handling file uploads
 
+// Database and S3 related imports
+const { 
+    createUser,
+    readUser,
+    updateUser,
+    deleteUser,
+    uploadVideo
+} = require('./db');
+
+
+
 // S3 related imports
 const { s3, bucketName, ListObjectsV2Command, GetObjectCommand, PutObjectCommand, DeleteObjectCommand } = require('./awsS3');
 const path = require('path'); // Path module for file path operations
