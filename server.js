@@ -18,16 +18,12 @@ const {
     deleteUser,
     uploadVideo
 } = require('./db');
-
-
-
-// S3 related imports
 const { s3, bucketName, ListObjectsV2Command, GetObjectCommand, PutObjectCommand, DeleteObjectCommand } = require('./awsS3');
 const path = require('path'); // Path module for file path operations
 const cors = require('cors'); // CORS middleware for cross-origin requests
 
 // Initialize Express application
-const app = express();
+const app = express(); 
 const port = process.env.PORT || 4000;
 
 // Security modules
@@ -355,7 +351,7 @@ app.get('/videos', async (req, res) => {
             return res.status(400).json({ message: 'Email is required' });
         }
 
-        const s3 = require('./awsS3');
+        const { s3, ListObjectsV2Command } = require('./awsS3');
         const { user } = await readUser(email);
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
@@ -366,21 +362,21 @@ app.get('/videos', async (req, res) => {
             // For teachers, get all videos from their class codes
             const classCodes = user.classCodesArray;
             for (const code of classCodes) {
-                const params = {
+                const command = new ListObjectsV2Command({
                     Bucket: 'aws-testing-prolerus',
                     Prefix: `${user.schoolName}/${code}/`
-                };
-                const data = await s3.listObjectsV2(params).promise();
-                videos = videos.concat(data.Contents);
+                });
+                const data = await s3.send(command);
+                videos = videos.concat(data.Contents || []);
             }
         } else {
             // For students, get only their own videos
-            const params = {
+            const command = new ListObjectsV2Command({
                 Bucket: 'aws-testing-prolerus',
                 Prefix: `${user.schoolName}/${user.email}/`
-            };
-            const data = await s3.listObjectsV2(params).promise();
-            videos = data.Contents;
+            });
+            const data = await s3.send(command);
+            videos = data.Contents || [];
         }
 
         res.status(200).json(videos);
@@ -399,11 +395,12 @@ app.delete('/delete-video', async (req, res) => {
     }
 
     try {
-        const s3 = require('./awsS3');
-        await s3.deleteObject({
+        const { s3, DeleteObjectCommand } = require('./awsS3');
+        const command = new DeleteObjectCommand({
             Bucket: 'aws-testing-prolerus',
             Key: videoId
-        }).promise();
+        });
+        await s3.send(command);
 
         console.log('Video deleted successfully:', videoId);
         res.status(200).json({ message: 'Video deleted successfully' });
@@ -422,8 +419,8 @@ app.post('/videos/view', async (req, res) => {
     }
 
     try {
-        const s3 = require('./awsS3');
-        await s3.copyObject({
+        const { s3, CopyObjectCommand } = require('./awsS3');
+        const command = new CopyObjectCommand({
             Bucket: 'aws-testing-prolerus',
             CopySource: `aws-testing-prolerus/${videoId}`,
             Key: videoId,
@@ -431,7 +428,8 @@ app.post('/videos/view', async (req, res) => {
                 viewed: 'true'
             },
             MetadataDirective: 'REPLACE'
-        }).promise();
+        });
+        await s3.send(command);
 
         console.log('Video marked as viewed successfully:', videoId);
         res.status(200).json({ message: 'Video marked as viewed successfully' });
