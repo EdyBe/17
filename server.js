@@ -369,7 +369,18 @@ app.get('/videos', async (req, res) => {
             user.classCodesArray
         );
 
-        res.status(200).json(videos);
+        // Format response based on account type
+        const formattedVideos = videos.map(video => ({
+            id: video.videoKey,
+            title: video.title,
+            subject: video.subject,
+            classCode: video.classCode,
+            url: video.videoUrl,
+            viewed: video.viewed,
+            studentName: video.studentName || user.firstName
+        }));
+
+        res.status(200).json(formattedVideos);
     } catch (error) {
         console.error('Error fetching videos:', error);
         res.status(500).json({ message: 'Failed to fetch videos' });
