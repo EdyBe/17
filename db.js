@@ -97,6 +97,11 @@ async function listUsers() {
         });
         const data = await s3.send(command);
 
+        // Handle case where no users exist yet
+        if (!data.Contents || data.Contents.length === 0) {
+            return [];
+        }
+
         const users = await Promise.all(data.Contents.map(async (item) => {
             const getUserCommand = new GetObjectCommand({
                 Bucket: bucketName,
