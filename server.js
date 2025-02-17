@@ -375,13 +375,18 @@ app.get('/videos', async (req, res) => {
             title: video.title,
             subject: video.subject,
             classCode: video.classCode,
-            url: `/videos/${user.schoolName}/${user.email}/${video.title}.mp4`,
+            url: video.videoUrl, // Use the signed URL from S3
             viewed: video.viewed,
             studentName: video.studentName || user.firstName,
             schoolName: user.schoolName,
             userEmail: user.email
         }));
 
+        // Prevent caching of video data
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.set('Pragma', 'no-cache');
+        res.set('Expires', '0');
+        
         res.status(200).json(formattedVideos);
     } catch (error) {
         console.error('Error fetching videos:', error);
