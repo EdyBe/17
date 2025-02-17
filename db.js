@@ -1,4 +1,5 @@
 const { s3, HeadBucketCommand, GetObjectCommand, PutObjectCommand, ListObjectsV2Command, DeleteObjectCommand } = require('./awsS3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const bucketName = 'aws-testing-prolerus';
 
 // License Key Management System (in-memory)
@@ -162,10 +163,10 @@ async function readUser(email) {
 
         // Get user's videos
         const videos = await listVideos(
+            user.email, 
+            user.accountType, 
             user.schoolName, 
-            user.classCodesArray,
-            user.email  
-            
+            user.classCodesArray
         );
 
         return { user, videos };
@@ -175,10 +176,14 @@ async function readUser(email) {
     }
 }
 
-async function listVideos(schoolName, classCodes, userEmail = []) {
+async function listVideos(userEmail, accountType, schoolName, classCodes = []) {
     try {
+        if (!accountType || !['student', 'teacher'].includes(accountType)) {
+            throw new Error('Invalid account type');
+        }
+
         let videos = [];
-        const metadataPrefix = accountType === 'student' 
+        const metadataPrefix = accountType === 'teacher' 
             ? `videos/${schoolName}/` 
             : `videos/${schoolName}/${userEmail}/`;
 
