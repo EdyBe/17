@@ -226,20 +226,32 @@ async function listVideos(userEmail, accountType, schoolName, classCodes = []) {
                     }
 
                     // Generate signed URL for video access
-                    const videoKey = `videos/${metadata.videoPath}`;
+                    const videoKey = metadata.videoPath;
                     const videoUrl = await getSignedUrl(s3, new GetObjectCommand({
                         Bucket: bucketName,
                         Key: videoKey,
-                        ResponseContentType: 'video/mp4',
+                        ResponseContentType: metadata.contentType || 'video/mp4',
                         Expires: 3600 // URL valid for 1 hour
                     }));
 
-                    return {
-                        ...metadata,
-                        videoUrl,
-                        videoKey,
-                        mimeType: 'video/mp4'
-                    };
+                    // Verify the video exists
+                    try {
+                        const headCommand = new HeadObjectCommand({
+                            Bucket: bucketName,
+                            Key: videoKey
+                        });
+                        await s3.send(headCommand);
+                        
+                        return {
+                            ...metadata,
+                            videoUrl,
+                            videoKey,
+                            mimeType: metadata.contentType || 'video/mp4'
+                        };
+                    } catch (error) {
+                        console.error('Video file not found:', videoKey);
+                        return null;
+                    }
                 } catch (error) {
                     console.error('Error parsing video metadata:', error);
                     return null;
