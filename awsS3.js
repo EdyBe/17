@@ -15,6 +15,7 @@ module.exports = {
   s3,
   bucketName,
   HeadBucketCommand,
+  HeadObjectCommand,
   GetObjectCommand,
   PutObjectCommand,
   ListObjectsV2Command,
