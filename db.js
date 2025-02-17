@@ -201,8 +201,18 @@ async function listVideos(userEmail, accountType, schoolName, classCodes = []) {
                         for await (const chunk of videoData.Body) {
                             chunks.push(chunk);
                         }
-                        const videoString = Buffer.concat(chunks).toString('utf8');
-                        return JSON.parse(videoString);
+                    const videoString = Buffer.concat(chunks).toString('utf8');
+                    try {
+                        const videoData = JSON.parse(videoString);
+                        if (!videoData || typeof videoData !== 'object') {
+                            throw new Error('Invalid video data format');
+                        }
+                        return videoData;
+                    } catch (parseError) {
+                        console.error('Error parsing video data:', parseError);
+                        console.error('Raw video data:', videoString);
+                        return null;
+                    }
                     }));
                     
                     videos = videos.concat(classVideos);
@@ -230,7 +240,17 @@ async function listVideos(userEmail, accountType, schoolName, classCodes = []) {
                         chunks.push(chunk);
                     }
                     const videoString = Buffer.concat(chunks).toString('utf8');
-                    return JSON.parse(videoString);
+                    try {
+                        const videoData = JSON.parse(videoString);
+                        if (!videoData || typeof videoData !== 'object') {
+                            throw new Error('Invalid video data format');
+                        }
+                        return videoData;
+                    } catch (parseError) {
+                        console.error('Error parsing video data:', parseError);
+                        console.error('Raw video data:', videoString);
+                        return null;
+                    }
                 }));
             }
         }
