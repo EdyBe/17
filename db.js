@@ -225,44 +225,44 @@ async function listVideos(userEmail, accountType, schoolName, classCodes = []) {
                         }
                     }
 
-                    // Generate signed URL for video access
+                    // Verify both metadata and video files exist
                     const videoKey = metadata.videoPath;
-                    const videoUrl = await getSignedUrl(s3, new GetObjectCommand({
-                        Bucket: bucketName,
-                        Key: videoKey,
-                        ResponseContentType: metadata.contentType || 'video/mp4',
-                        Expires: 3600 // URL valid for 1 hour
-                    }));
-
-                    // Verify the video exists with better error handling
+                    
                     try {
-                        const headCommand = new HeadObjectCommand({
+                        // Verify metadata file exists
+                        await s3.send(new HeadObjectCommand({
+                            Bucket: bucketName,
+                            Key: item.Key // The metadata JSON file
+                        }));
+
+                        // Verify video file exists
+                        await s3.send(new HeadObjectCommand({
                             Bucket: bucketName,
                             Key: videoKey
-                        });
-                        await s3.send(headCommand);
-                        
-                        console.log('Video file verified:', videoKey);
-                        return {
-                            ...metadata,
-                            videoUrl,
-                            videoKey,
-                            mimeType: metadata.contentType || 'video/mp4'
-                        };
-                    } catch (error) {
-                        console.error('Video file verification failed:', {
-                            key: videoKey,
-                            error: error.message
-                        });
-                        // Return the video metadata even if verification fails
-                        // to allow debugging and error handling in the UI
+                        }));
+
+                        // Generate signed URL for video access
+                        const videoUrl = await getSignedUrl(s3, new GetObjectCommand({
+                            Bucket: bucketName,
+                            Key: videoKey,
+                            ResponseContentType: metadata.contentType || 'video/mp4',
+                            Expires: 3600 // URL valid for 1 hour
+                        }));
+
                         return {
                             ...metadata,
                             videoUrl,
                             videoKey,
                             mimeType: metadata.contentType || 'video/mp4',
-                            error: 'Video verification failed'
+                            metadataKey: item.Key
                         };
+                    } catch (error) {
+                        console.error('File verification failed:', {
+                            metadataKey: item.Key,
+                            videoKey: videoKey,
+                            error: error.message
+                        });
+                        return null; // Skip this video if either file is missing
                     }
                 } catch (error) {
                     console.error('Error parsing video metadata:', error);
