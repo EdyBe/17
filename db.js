@@ -331,4 +331,12 @@ async function uploadVideo(videoData) {
     }
 }
 
-module.exports = { connectToDatabase, createUser, readUser, updateUser, deleteUser, uploadVideo };
+module.exports = { 
+    connectToDatabase, 
+    createUser, 
+    readUser, 
+    updateUser, 
+    deleteUser, 
+    uploadVideo,
+    listVideos 
+};
