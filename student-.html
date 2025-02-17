@@ -98,8 +98,10 @@ dropdownContent.addEventListener('mouseleave', function() {
             const videoItem = document.createElement('div');
             videoItem.className = 'video-item';
 
+            console.log('Video object:', video);
             console.log('Video URL:', video.videoUrl);
             console.log('MIME Type:', video.mimeType);
+            console.log('Video Key:', video.videoKey);
             
             const videoPlayer = document.createElement('video');
             videoPlayer.controls = true;
