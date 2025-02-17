@@ -100,8 +100,9 @@ dropdownContent.addEventListener('mouseleave', function() {
 
             const videoPlayer = document.createElement('video');
             videoPlayer.controls = true;
-            videoPlayer.src = `/videos/${video.schoolName}/${video.userEmail}.mp4`;
+            videoPlayer.src = video.videoUrl;
             videoPlayer.type = 'video/mp4';
+            videoPlayer.preload = 'metadata';
 
             const title = document.createElement('h3');
             title.className = 'video-title';
