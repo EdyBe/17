@@ -373,32 +373,46 @@ async function uploadVideo(videoData) {
             videoPath = `videos/${videoData.schoolName}/${videoData.userEmail}/${videoData.title}`;
         }
 
-        const params = {
+        // Create metadata file
+        const metadata = {
+            title: videoData.title,
+            subject: videoData.subject,
+            userId: videoData.userId,
+            userEmail: videoData.userEmail,
+            classCode: videoData.classCode,
+            contentType: videoData.mimetype,
+            viewed: false,
+            schoolName: videoData.schoolName,
+            accountType: videoData.accountType,
+            videoPath: `${videoPath}.mp4`
+        };
+
+        // Upload metadata
+        const metadataParams = {
             Bucket: process.env.S3_BUCKET_NAME,
-            Key: videoPath,
+            Key: `${videoPath}.json`,
+            Body: JSON.stringify(metadata),
+            ContentType: 'application/json'
+        };
+        await s3.send(new PutObjectCommand(metadataParams));
+
+        // Upload video file
+        const videoParams = {
+            Bucket: process.env.S3_BUCKET_NAME,
+            Key: `${videoPath}.mp4`,
             Body: videoData.buffer,
             ContentType: videoData.mimetype
         };
 
-        // Upload video
-        const command = new PutObjectCommand(params);
-        const s3Response = await s3.send(command);
-        console.log('Video uploaded successfully to S3:', s3Response.Location);
+        // Upload both metadata and video
+        const metadataResponse = await s3.send(new PutObjectCommand(metadataParams));
+        const videoResponse = await s3.send(new PutObjectCommand(videoParams));
+        console.log('Video and metadata uploaded successfully to S3');
 
         return {
-            fileId: s3Response.Key,
-            filename: s3Response.Key,
-            metadata: {
-                title: videoData.title,
-                subject: videoData.subject,
-                userId: videoData.userId,
-                userEmail: videoData.userEmail,
-                classCode: videoData.classCode,
-                contentType: videoData.mimetype,
-                viewed: false,
-                schoolName: videoData.schoolName,
-                accountType: videoData.accountType
-            }
+            fileId: videoResponse.Key,
+            filename: videoResponse.Key,
+            metadata: metadata
         };
     } catch (error) {
         console.error('Error uploading video:', error);
