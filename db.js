@@ -161,7 +161,12 @@ async function readUser(email) {
         }
 
         // Get user's videos
-        const videos = await listVideos(user.email);
+        const videos = await listVideos(
+            user.email, 
+            user.accountType, 
+            user.schoolName, 
+            user.classCodesArray
+        );
 
         return { user, videos };
     } catch (error) {
@@ -170,34 +175,65 @@ async function readUser(email) {
     }
 }
 
-async function listVideos(userEmail) {
+async function listVideos(userEmail, accountType, schoolName, classCodes = []) {
     try {
-        const listVideosCommand = new ListObjectsV2Command({
-            Bucket: bucketName,
-            Prefix: `videos/${userEmail}/`
-        });
-        const data = await s3.send(listVideosCommand);
-
-        // Handle case where no videos exist yet
-        if (!data.Contents || data.Contents.length === 0) {
-            return [];
-        }
-
-        const videos = await Promise.all(data.Contents.map(async (item) => {
-            const getVideoCommand = new GetObjectCommand({
-                Bucket: bucketName,
-                Key: item.Key
-            });
-            const videoData = await s3.send(getVideoCommand);
-            
-            // Convert the ReadableStream to string and parse JSON
-            const chunks = [];
-            for await (const chunk of videoData.Body) {
-                chunks.push(chunk);
+        let videos = [];
+        
+        if (accountType === 'teacher') {
+            // For teachers, get all videos from their class codes
+            for (const classCode of classCodes) {
+                const command = new ListObjectsV2Command({
+                    Bucket: bucketName,
+                    Prefix: `videos/${schoolName}/${classCode}/`
+                });
+                const data = await s3.send(command);
+                
+                if (data.Contents) {
+                    const classVideos = await Promise.all(data.Contents.map(async (item) => {
+                        const getVideoCommand = new GetObjectCommand({
+                            Bucket: bucketName,
+                            Key: item.Key
+                        });
+                        const videoData = await s3.send(getVideoCommand);
+                        
+                        // Convert the ReadableStream to string and parse JSON
+                        const chunks = [];
+                        for await (const chunk of videoData.Body) {
+                            chunks.push(chunk);
+                        }
+                        const videoString = Buffer.concat(chunks).toString('utf8');
+                        return JSON.parse(videoString);
+                    }));
+                    
+                    videos = videos.concat(classVideos);
+                }
             }
-            const videoString = Buffer.concat(chunks).toString('utf8');
-            return JSON.parse(videoString);
-        }));
+        } else {
+            // For students, get only their own videos
+            const command = new ListObjectsV2Command({
+                Bucket: bucketName,
+                Prefix: `videos/${schoolName}/${userEmail}/`
+            });
+            const data = await s3.send(command);
+            
+            if (data.Contents) {
+                videos = await Promise.all(data.Contents.map(async (item) => {
+                    const getVideoCommand = new GetObjectCommand({
+                        Bucket: bucketName,
+                        Key: item.Key
+                    });
+                    const videoData = await s3.send(getVideoCommand);
+                    
+                    // Convert the ReadableStream to string and parse JSON
+                    const chunks = [];
+                    for await (const chunk of videoData.Body) {
+                        chunks.push(chunk);
+                    }
+                    const videoString = Buffer.concat(chunks).toString('utf8');
+                    return JSON.parse(videoString);
+                }));
+            }
+        }
 
         return videos;
     } catch (error) {
@@ -299,14 +335,22 @@ async function uploadVideo(videoData) {
     try {
         console.log('Uploading video to S3...');
 
+        // Create structured path based on user type
+        let videoPath;
+        if (videoData.accountType === 'teacher') {
+            videoPath = `videos/${videoData.schoolName}/${videoData.classCode}/${videoData.userEmail}/${videoData.title}`;
+        } else {
+            videoPath = `videos/${videoData.schoolName}/${videoData.userEmail}/${videoData.title}`;
+        }
+
         const params = {
-            Bucket: process.env.S3_BUCKET_NAME, // Your S3 bucket name
-            Key: `${videoData.userId}/${videoData.title}`, // File name you want to save as in S3
-            Body: videoData.buffer, // The video buffer
-            ContentType: videoData.mimetype // MIME type of the video
+            Bucket: process.env.S3_BUCKET_NAME,
+            Key: videoPath,
+            Body: videoData.buffer,
+            ContentType: videoData.mimetype
         };
 
-        // Uploading files to the bucket
+        // Upload video
         const command = new PutObjectCommand(params);
         const s3Response = await s3.send(command);
         console.log('Video uploaded successfully to S3:', s3Response.Location);
@@ -322,7 +366,8 @@ async function uploadVideo(videoData) {
                 classCode: videoData.classCode,
                 contentType: videoData.mimetype,
                 viewed: false,
-                schoolName: videoData.schoolName
+                schoolName: videoData.schoolName,
+                accountType: videoData.accountType
             }
         };
     } catch (error) {
