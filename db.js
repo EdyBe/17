@@ -212,10 +212,12 @@ async function listVideos(userEmail, accountType, schoolName, classCodes = []) {
                         throw new Error('Invalid metadata format');
                     }
 
-                    // For teachers, filter by class codes
-                    if (accountType === 'teacher' && 
-                        !classCodes.includes(metadata.classCode)) {
-                        return null;
+                    // For teachers, filter by school name and class codes
+                    if (accountType === 'teacher') {
+                        if (metadata.schoolName !== schoolName || 
+                            !classCodes.includes(metadata.classCode)) {
+                            return null;
+                        }
                     }
 
                     // Generate signed URL for video access
