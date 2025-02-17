@@ -343,11 +343,9 @@ async function uploadVideo(videoData) {
 
         // Create structured path based on user type
         let videoPath;
-        if (videoData.accountType === 'teacher') {
+        if (videoData.accountType === 'student') {
             videoPath = `videos/${videoData.schoolName}/${videoData.classCode}/${videoData.userEmail}/${videoData.title}`;
-        } else {
-            videoPath = `videos/${videoData.schoolName}/${videoData.userEmail}/${videoData.title}`;
-        }
+        } 
 
         // Create metadata file
         const metadata = {
