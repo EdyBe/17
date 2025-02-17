@@ -373,7 +373,13 @@ app.get('/videos', async (req, res) => {
                     Prefix: `${user.schoolName}/${code}/`
                 });
                 const data = await s3.send(command);
-                videos = videos.concat(data.Contents || []);
+                const videoMetadata = (data.Contents || []).map(video => ({
+                    key: video.Key,
+                    lastModified: video.LastModified,
+                    size: video.Size,
+                    storageClass: video.StorageClass
+                }));
+                videos = videos.concat(videoMetadata);
             }
         } else {
             // For students, get only their own videos
@@ -382,7 +388,13 @@ app.get('/videos', async (req, res) => {
                 Prefix: `${user.schoolName}/${user.email}/`
             });
             const data = await s3.send(command);
-            videos = data.Contents || [];
+            const videoMetadata = (data.Contents || []).map(video => ({
+                key: video.Key,
+                lastModified: video.LastModified,
+                size: video.Size,
+                storageClass: video.StorageClass
+            }));
+            videos = videoMetadata;
         }
 
         res.status(200).json(videos);
