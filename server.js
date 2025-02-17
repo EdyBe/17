@@ -239,8 +239,7 @@ app.get('/class-codes', async (req, res) => {
             return res.status(400).json({ message: 'Email is required' });
         }
 
-        const db = await connectToDatabase();
-        const user = await db.collection('users').findOne({ email });
+        const { user } = await readUser(email);
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
