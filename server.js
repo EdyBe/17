@@ -375,7 +375,7 @@ app.get('/videos', async (req, res) => {
             title: video.title,
             subject: video.subject,
             classCode: video.classCode,
-            url: `videos/${user.schoolName}/${video.classCode}/${user.email}/${video.title}.mp4`,
+            url: `/videos/${user.schoolName}/${video.classCode}/${user.email}/${video.title}.mp4`,
             viewed: video.viewed,
             studentName: video.studentName || user.firstName,
             schoolName: user.schoolName,
