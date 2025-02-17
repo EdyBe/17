@@ -108,7 +108,21 @@ async function listUsers() {
                 Key: item.Key
             });
             const userData = await s3.send(getUserCommand);
-            return JSON.parse(userData.Body.toString());
+            
+            // Convert the ReadableStream to string and parse JSON
+            const chunks = [];
+            for await (const chunk of userData.Body) {
+                chunks.push(chunk);
+            }
+            const userString = Buffer.concat(chunks).toString('utf8');
+            const user = JSON.parse(userString);
+            
+            // Validate required fields
+            if (!user.email || !user.firstName || !user.accountType) {
+                throw new Error('Invalid user data format');
+            }
+            
+            return user;
         }));
 
         return users;
