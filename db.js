@@ -178,91 +178,57 @@ async function readUser(email) {
 async function listVideos(userEmail, accountType, schoolName, classCodes = []) {
     try {
         let videos = [];
-        
-        if (accountType === 'teacher') {
-            // For teachers, get all videos from their class codes
-            for (const classCode of classCodes) {
-                const command = new ListObjectsV2Command({
+        const metadataPrefix = accountType === 'teacher' 
+            ? `metadata/${schoolName}/` 
+            : `metadata/${schoolName}/${userEmail}/`;
+
+        // Get metadata files
+        const metadataCommand = new ListObjectsV2Command({
+            Bucket: bucketName,
+            Prefix: metadataPrefix
+        });
+        const metadataResult = await s3.send(metadataCommand);
+
+        if (metadataResult.Contents) {
+            videos = await Promise.all(metadataResult.Contents.map(async (item) => {
+                if (!item.Key.endsWith('.json')) return null;
+
+                const getMetadataCommand = new GetObjectCommand({
                     Bucket: bucketName,
-                    Prefix: `videos/${schoolName}/${classCode}/`
+                    Key: item.Key
                 });
-                const data = await s3.send(command);
+                const metadataResponse = await s3.send(getMetadataCommand);
                 
-                if (data.Contents) {
-                    const classVideos = await Promise.all(data.Contents.map(async (item) => {
-                        const getVideoCommand = new GetObjectCommand({
-                            Bucket: bucketName,
-                            Key: item.Key
-                        });
-                        const videoData = await s3.send(getVideoCommand);
-                        
-                        // Convert the ReadableStream to string and parse JSON
-                        const chunks = [];
-                        for await (const chunk of videoData.Body) {
-                            chunks.push(chunk);
-                        }
-                    const videoBuffer = Buffer.concat(chunks);
-                    try {
-                        // First try to parse as JSON for metadata
-                        const videoString = videoBuffer.toString('utf8');
-                        const videoData = JSON.parse(videoString);
-                        if (!videoData || typeof videoData !== 'object') {
-                            throw new Error('Invalid video data format');
-                        }
-                        return videoData;
-                    } catch (parseError) {
-                        // If JSON parsing fails, return the raw buffer
-                        console.error('Error parsing video data as JSON, returning raw buffer');
-                        return {
-                            buffer: videoBuffer,
-                            isRaw: true
-                        };
-                    }
-                    }));
-                    
-                    videos = videos.concat(classVideos);
+                // Convert the ReadableStream to string and parse JSON
+                const chunks = [];
+                for await (const chunk of metadataResponse.Body) {
+                    chunks.push(chunk);
                 }
-            }
-        } else {
-            // For students, get only their own videos
-            const command = new ListObjectsV2Command({
-                Bucket: bucketName,
-                Prefix: `videos/${schoolName}/${userEmail}/`
-            });
-            const data = await s3.send(command);
-            
-            if (data.Contents) {
-                videos = await Promise.all(data.Contents.map(async (item) => {
-                    const getVideoCommand = new GetObjectCommand({
-                        Bucket: bucketName,
-                        Key: item.Key
-                    });
-                    const videoData = await s3.send(getVideoCommand);
-                    
-                    // Convert the ReadableStream to string and parse JSON
-                    const chunks = [];
-                    for await (const chunk of videoData.Body) {
-                        chunks.push(chunk);
+                const metadataString = Buffer.concat(chunks).toString('utf8');
+                
+                try {
+                    const metadata = JSON.parse(metadataString);
+                    if (!metadata || typeof metadata !== 'object') {
+                        throw new Error('Invalid metadata format');
                     }
-                    const videoBuffer = Buffer.concat(chunks);
-                    try {
-                        // First try to parse as JSON for metadata
-                        const videoString = videoBuffer.toString('utf8');
-                        const videoData = JSON.parse(videoString);
-                        if (!videoData || typeof videoData !== 'object') {
-                            throw new Error('Invalid video data format');
-                        }
-                        return videoData;
-                    } catch (parseError) {
-                        // If JSON parsing fails, return the raw buffer
-                        console.error('Error parsing video data as JSON, returning raw buffer');
-                        return {
-                            buffer: videoBuffer,
-                            isRaw: true
-                        };
+
+                    // For teachers, filter by class codes
+                    if (accountType === 'teacher' && 
+                        !classCodes.includes(metadata.classCode)) {
+                        return null;
                     }
-                }));
-            }
+
+                    // Add video URL to metadata
+                    metadata.videoUrl = `https://${bucketName}.s3.amazonaws.com/videos/${metadata.videoPath}`;
+                    return metadata;
+                } catch (error) {
+                    console.error('Error parsing video metadata:', error);
+                    return null;
+                }
+            }));
+
+            // Filter out null values
+            videos = videos.filter(v => v !== null);
         }
 
         return videos;
