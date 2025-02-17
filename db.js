@@ -248,6 +248,7 @@ async function listVideos(userEmail, accountType, schoolName, classCodes = []) {
                             ResponseContentType: metadata.contentType || 'video/mp4',
                             Expires: 3600 // URL valid for 1 hour
                         }));
+                        console.log('Generated video URL:', videoUrl);
 
                         return {
                             ...metadata,
