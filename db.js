@@ -179,8 +179,8 @@ async function listVideos(userEmail, accountType, schoolName, classCodes = []) {
     try {
         let videos = [];
         const metadataPrefix = accountType === 'teacher' 
-            ? `metadata/${schoolName}/` 
-            : `metadata/${schoolName}/${userEmail}/`;
+            ? `videos/${schoolName}/` 
+            : `videos/${schoolName}/${userEmail}/`;
 
         // Get metadata files
         const metadataCommand = new ListObjectsV2Command({
