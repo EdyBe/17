@@ -405,13 +405,31 @@ app.delete('/delete-video', async (req, res) => {
 
     try {
         const { s3, DeleteObjectCommand } = require('./awsS3');
-        const command = new DeleteObjectCommand({
+        
+        // First, get the video metadata to find the associated metadata file
+        const getMetadataCommand = new GetObjectCommand({
             Bucket: 'aws-testing-prolerus',
-            Key: videoId
+            Key: `videos/metadata/${videoId}.json`
         });
-        await s3.send(command);
+        
+        const metadataResponse = await s3.send(getMetadataCommand);
+        const metadata = JSON.parse(await metadataResponse.Body.transformToString());
+        
+        // Delete the video file
+        const deleteVideoCommand = new DeleteObjectCommand({
+            Bucket: 'aws-testing-prolerus',
+            Key: metadata.videoPath
+        });
+        await s3.send(deleteVideoCommand);
 
-        console.log('Video deleted successfully:', videoId);
+        // Delete the metadata file
+        const deleteMetadataCommand = new DeleteObjectCommand({
+            Bucket: 'aws-testing-prolerus',
+            Key: `videos/metadata/${videoId}.json`
+        });
+        await s3.send(deleteMetadataCommand);
+
+        console.log('Video and metadata deleted successfully:', videoId);
         res.status(200).json({ message: 'Video deleted successfully' });
     } catch (error) {
         console.error('Error deleting video:', error);
