@@ -100,17 +100,16 @@ dropdownContent.addEventListener('mouseleave', function() {
 
             const videoPlayer = document.createElement('video');
             videoPlayer.controls = true;
-            const videoId = video._id;
-            videoPlayer.src = `/videos.files/${videoId}`;
-            videoPlayer.type = video.metadata.contentType;
+            videoPlayer.src = video.url;
+            videoPlayer.type = 'video/mp4';
 
             const title = document.createElement('h3');
             title.className = 'video-title';
-            title.innerText = video.metadata.title;
+            title.innerText = video.title;
 
             const subject = document.createElement('p');
             subject.className = 'video-subject';
-            subject.innerText = video.metadata.subject;
+            subject.innerText = video.subject;
 
             const deleteButton = document.createElement('button');
             deleteButton.className = 'delete-button';
@@ -129,8 +128,8 @@ dropdownContent.addEventListener('mouseleave', function() {
         function filterAndDisplayVideos(videos, folderContent, searchTerm = '') {
             folderContent.innerHTML = '';
             const filteredVideos = videos.filter(video =>
-                video.metadata.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                video.metadata.subject.toLowerCase().includes(searchTerm.toLowerCase())
+                video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                video.subject.toLowerCase().includes(searchTerm.toLowerCase())
             );
             filteredVideos.forEach(video => createVideoItem(video, folderContent));
         }
@@ -215,7 +214,7 @@ dropdownContent.addEventListener('mouseleave', function() {
                     // Group videos by class code
                     const groupedVideos = {};
                     videos.forEach(video => {
-                        const classCode = video.metadata.classCode;
+                        const classCode = video.classCode;
                         if (!groupedVideos[classCode]) {
                             groupedVideos[classCode] = [];
                         }
