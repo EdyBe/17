@@ -9,8 +9,11 @@ const s3 = new S3Client({
   }
 });
 
+const bucketName = process.env.S3_BUCKET_NAME;
+
 module.exports = {
   s3,
+  bucketName,
   HeadBucketCommand,
   GetObjectCommand,
   PutObjectCommand,
