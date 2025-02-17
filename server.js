@@ -133,7 +133,7 @@ app.post('/upload', upload.single('video'), async (req, res) => {
         }
 
         // Validate user object
-        if (!user || !user._id) {
+        if (!user) {
             console.log('Invalid user object:', user);
             return res.status(400).json({ message: 'Invalid user data' });
         }
@@ -142,7 +142,7 @@ app.post('/upload', upload.single('video'), async (req, res) => {
         const videoData = {
             title: req.body.title,
             subject: req.body.subject,
-            userId: user._id.toString(),
+            userId: user.email, // Using email as the unique identifier
             userEmail: user.email,
             classCode: req.body.classCode,
             accountType: user.accountType,
