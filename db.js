@@ -201,17 +201,22 @@ async function listVideos(userEmail, accountType, schoolName, classCodes = []) {
                         for await (const chunk of videoData.Body) {
                             chunks.push(chunk);
                         }
-                    const videoString = Buffer.concat(chunks).toString('utf8');
+                    const videoBuffer = Buffer.concat(chunks);
                     try {
+                        // First try to parse as JSON for metadata
+                        const videoString = videoBuffer.toString('utf8');
                         const videoData = JSON.parse(videoString);
                         if (!videoData || typeof videoData !== 'object') {
                             throw new Error('Invalid video data format');
                         }
                         return videoData;
                     } catch (parseError) {
-                        console.error('Error parsing video data:', parseError);
-                        console.error('Raw video data:', videoString);
-                        return null;
+                        // If JSON parsing fails, return the raw buffer
+                        console.error('Error parsing video data as JSON, returning raw buffer');
+                        return {
+                            buffer: videoBuffer,
+                            isRaw: true
+                        };
                     }
                     }));
                     
@@ -239,17 +244,22 @@ async function listVideos(userEmail, accountType, schoolName, classCodes = []) {
                     for await (const chunk of videoData.Body) {
                         chunks.push(chunk);
                     }
-                    const videoString = Buffer.concat(chunks).toString('utf8');
+                    const videoBuffer = Buffer.concat(chunks);
                     try {
+                        // First try to parse as JSON for metadata
+                        const videoString = videoBuffer.toString('utf8');
                         const videoData = JSON.parse(videoString);
                         if (!videoData || typeof videoData !== 'object') {
                             throw new Error('Invalid video data format');
                         }
                         return videoData;
                     } catch (parseError) {
-                        console.error('Error parsing video data:', parseError);
-                        console.error('Raw video data:', videoString);
-                        return null;
+                        // If JSON parsing fails, return the raw buffer
+                        console.error('Error parsing video data as JSON, returning raw buffer');
+                        return {
+                            buffer: videoBuffer,
+                            isRaw: true
+                        };
                     }
                 }));
             }
