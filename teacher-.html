@@ -98,8 +98,10 @@ dropdownContent.addEventListener('mouseleave', function() {
 
             const videoPlayer = document.createElement('video');
             videoPlayer.controls = true;
-            videoPlayer.src = video.videoUrl;
-            videoPlayer.type = video.mimeType || 'video/mp4';
+            const source = document.createElement('source');
+            source.src = video.videoUrl;
+            source.type = video.mimeType || 'video/mp4';
+            videoPlayer.appendChild(source);
             videoPlayer.preload = 'metadata';
             
             // Add error handling
