@@ -98,7 +98,7 @@ dropdownContent.addEventListener('mouseleave', function() {
 
             const videoPlayer = document.createElement('video');
             videoPlayer.controls = true;
-            videoPlayer.src = `videos/${video.schoolName}/${video.classCode}/${video.userEmail}/${video.title}`;
+            videoPlayer.src = `videos/${video.schoolName}/${video.classCode}/${video.userEmail}/${video.title}.mp4`;
             videoPlayer.type = 'video/mp4';
 
             const subject = document.createElement('h3');
@@ -121,7 +121,7 @@ dropdownContent.addEventListener('mouseleave', function() {
             videoItem.appendChild(emailDisplay);
 
             const downloadLink = document.createElement('a');
-            downloadLink.href = `videos/${video.schoolName}/${video.classCode}/${video.userEmail}/${video.title}`;
+            downloadLink.href = `videos/${video.schoolName}/${video.classCode}/${video.userEmail}/${video.title}.mp4`;
             downloadLink.download = video.title || 'video';
             downloadLink.innerHTML = '<i class="fas fa-download"></i>';
             downloadLink.className = 'download-icon';
