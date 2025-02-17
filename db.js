@@ -230,13 +230,15 @@ async function listVideos(userEmail, accountType, schoolName, classCodes = []) {
                     const videoUrl = await getSignedUrl(s3, new GetObjectCommand({
                         Bucket: bucketName,
                         Key: videoKey,
+                        ResponseContentType: 'video/mp4',
                         Expires: 3600 // URL valid for 1 hour
                     }));
 
                     return {
                         ...metadata,
                         videoUrl,
-                        videoKey
+                        videoKey,
+                        mimeType: 'video/mp4'
                     };
                 } catch (error) {
                     console.error('Error parsing video metadata:', error);
