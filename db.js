@@ -178,19 +178,31 @@ async function listVideos(userEmail) {
         });
         const data = await s3.send(listVideosCommand);
 
+        // Handle case where no videos exist yet
+        if (!data.Contents || data.Contents.length === 0) {
+            return [];
+        }
+
         const videos = await Promise.all(data.Contents.map(async (item) => {
             const getVideoCommand = new GetObjectCommand({
                 Bucket: bucketName,
                 Key: item.Key
             });
             const videoData = await s3.send(getVideoCommand);
-            return JSON.parse(videoData.Body.toString());
+            
+            // Convert the ReadableStream to string and parse JSON
+            const chunks = [];
+            for await (const chunk of videoData.Body) {
+                chunks.push(chunk);
+            }
+            const videoString = Buffer.concat(chunks).toString('utf8');
+            return JSON.parse(videoString);
         }));
 
         return videos;
     } catch (error) {
         console.error('Error listing videos:', error);
-        throw error;
+        return [];
     }
 }
 
