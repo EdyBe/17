@@ -218,9 +218,19 @@ async function listVideos(userEmail, accountType, schoolName, classCodes = []) {
                         return null;
                     }
 
-                    // Add video URL to metadata
-                    metadata.videoUrl = `https://${bucketName}.s3.amazonaws.com/videos/${metadata.videoPath}`;
-                    return metadata;
+                    // Generate signed URL for video access
+                    const videoKey = `videos/${metadata.videoPath}`;
+                    const videoUrl = await getSignedUrl(s3, new GetObjectCommand({
+                        Bucket: bucketName,
+                        Key: videoKey,
+                        Expires: 3600 // URL valid for 1 hour
+                    }));
+
+                    return {
+                        ...metadata,
+                        videoUrl,
+                        videoKey
+                    };
                 } catch (error) {
                     console.error('Error parsing video metadata:', error);
                     return null;
