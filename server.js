@@ -10,8 +10,8 @@ const {
 } = require('./emailService'); // Email service functions for password reset
 const multer = require('multer'); // Middleware for handling file uploads
 
-// Database related imports
-const { connectToDatabase, uploadVideo, createUser, updateUser } = require('./db');
+// S3 related imports
+const { s3, bucketName, ListObjectsV2Command, GetObjectCommand, PutObjectCommand, DeleteObjectCommand } = require('./awsS3');
 const path = require('path'); // Path module for file path operations
 const cors = require('cors'); // CORS middleware for cross-origin requests
 
@@ -42,7 +42,8 @@ app.use((err, req, res, next) => {
 // Verify S3 connection
 async function verifyStorageConnection() {
     try {
-        await connectToDatabase();
+        const command = new ListObjectsV2Command({ Bucket: bucketName });
+        await s3.send(command);
         console.log('S3 connection verified');
     } catch (error) {
         console.error('S3 connection failed:', error);
@@ -81,8 +82,7 @@ app.get('/user-info', async (req, res) => {
             return res.status(400).json({ message: 'Email is required' });
         }
 
-        const db = await connectToDatabase();
-        const user = await db.collection('users').findOne({ email });
+        const { user } = await readUser(email);
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
@@ -119,11 +119,7 @@ app.post('/upload', upload.single('video'), async (req, res) => {
 
     try {
         console.log('Connecting to database...');
-        const db = await connectToDatabase();
-        const usersCollection = db.collection('users');
-        
-        console.log('Looking up user:', req.body.email);
-        const user = await usersCollection.findOne({ email: req.body.email });
+        const { user } = await readUser(req.body.email);
         if (!user) {
             console.log('User not found');
             return res.status(404).json({ message: 'User not found' });
@@ -145,11 +141,11 @@ app.post('/upload', upload.single('video'), async (req, res) => {
         };
 
         // Check for existing video with same metadata
-        const existingVideo = await db.collection('videos.files').findOne({
-            'metadata.userEmail': user.email,
-            'metadata.title': req.body.title,
-            'metadata.classCode': req.body.classCode
-        });
+        const videos = await listVideos(user.email);
+        const existingVideo = videos.find(video => 
+            video.title === req.body.title && 
+            video.classCode === req.body.classCode
+        );
 
         if (existingVideo) {
             return res.status(400).json({ message: 'A video with the same title and class code already exists' });
@@ -200,16 +196,6 @@ app.post('/register', async (req, res) => {
         // Hash password for secure storage
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const db = await connectToDatabase();
-        const usersCollection = db.collection('users');
-
-        // Check for existing user
-        console.log("Checking for existing user with email:", email);
-        const existingUser = await usersCollection.findOne({ email });
-        if (existingUser) {
-            return res.status(400).json({ message: "Email already in use." });
-        }
-
         // Create new user object
         const newUser = {
             firstName,
@@ -221,7 +207,7 @@ app.post('/register', async (req, res) => {
             schoolName
         };
 
-        // Create user in database
+        // Create user in S3
         try {
             await createUser(newUser);
             res.status(200).json({ message: "Registration successful!", email });
@@ -271,11 +257,7 @@ app.post('/sign-in', async (req, res) => {
     console.log("Sign-in request received:", req.body);
 
     try {
-        const db = await connectToDatabase();
-        const usersCollection = db.collection('users');
-
-        // Find user by email
-        const user = await usersCollection.findOne({ email: email });
+        const { user } = await readUser(email);
         if (!user) {
             return res.status(400).json({ message: "Invalid email or password" });
         }
@@ -312,22 +294,8 @@ app.delete('/delete-account', async (req, res) => {
     }
 
     try {
-        const db = await connectToDatabase();
-        
-        // Find the user to get their ID
-        const user = await db.collection('users').findOne({ email });
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-
-        // Delete associated videos based on userEmail in metadata
-        await db.collection('videos.files').deleteMany({ 'metadata.userEmail': email });
-
-        // Delete associated video chunks
-        await db.collection('videos.chunks').deleteMany({ files_id: { $in: user.videoIds || [] } }); // Ensure videoIds is treated as an array
-
-        // Delete the user
-        await db.collection('users').deleteOne({ email });
+        // Delete user and associated videos
+        await deleteUser(email);
 
         console.log('Account deleted successfully for email:', email);
         res.status(200).json({ message: 'Account deleted successfully' });
@@ -467,11 +435,7 @@ app.post('/api/forgot-password', async (req, res) => {
     const { email } = req.body;
 
     try {
-        const db = await connectToDatabase();
-        const usersCollection = db.collection('users');
-        
-        // Check if the email exists in the database
-        const user = await usersCollection.findOne({ email });
+        const { user } = await readUser(email);
         
         // For security, don't reveal if email exists or not
         if (!user) {
@@ -508,19 +472,9 @@ app.post('/api/reset-password', async (req, res) => {
             return res.status(400).send('This password reset link has expired or is invalid. Please request a new one.');
         }
 
-        const db = await connectToDatabase();
-        const usersCollection = db.collection('users');
-
         // Hash the new password and update it in the database
         const hashedPassword = await bcrypt.hash(newPassword, 10);
-        const result = await usersCollection.updateOne(
-            { email }, 
-            { $set: { password: hashedPassword } }
-        );
-
-        if (result.modifiedCount === 0) {
-            return res.status(400).send('Unable to update password. Please try again.');
-        }
+        await updateUser(email, { password: hashedPassword });
 
         // Delete the used token
         deleteResetToken(token);
@@ -542,8 +496,7 @@ app.put('/update-user', async (req, res) => {
     }
 
     try {
-        const db = await connectToDatabase();
-        const user = await db.collection('users').findOne({ email });
+        const { user } = await readUser(email);
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
@@ -556,6 +509,4 @@ app.put('/update-user', async (req, res) => {
         res.status(500).json({ message: 'Code invalid' });
     }
 });
-app.listen(port, () => {
-    console.log(`Listening on port ${port}`);
-});
+app.listen(port, () => {console.log(`Listening on port ${port}`);});
