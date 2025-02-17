@@ -357,69 +357,17 @@ app.get('/videos', async (req, res) => {
             return res.status(400).json({ message: 'Email is required' });
         }
 
-        const { s3, ListObjectsV2Command } = require('./awsS3');
         const { user } = await readUser(email);
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        let videos = [];
-        if (user.accountType === 'teacher') {
-            // For teachers, get all videos from their class codes
-            const classCodes = user.classCodesArray;
-            for (const code of classCodes) {
-            const command = new ListObjectsV2Command({
-                Bucket: 'aws-testing-prolerus',
-                Prefix: `${user.schoolName}/videos/`
-            });
-                const data = await s3.send(command);
-                const videoMetadata = await Promise.all((data.Contents || []).map(async video => {
-                    const parts = video.Key.split('/');
-                    const uploaderEmail = parts[parts.length - 2];
-                    try {
-                        const { user: uploader } = await readUser(uploaderEmail);
-                        return {
-                            key: video.Key,
-                            url: `https://${bucketName}.s3.amazonaws.com/${video.Key}`,
-                            title: video.Metadata?.title || 'Untitled',
-                            uploadDate: video.LastModified,
-                            uploader: uploader?.firstName || 'Unknown',
-                            classCode: video.Metadata?.classCode || 'Unknown'
-                        };
-                    } catch (error) {
-                        console.error('Error fetching uploader info:', error);
-                        return {
-                            key: video.Key,
-                            url: `https://${bucketName}.s3.amazonaws.com/${video.Key}`,
-                            title: video.Metadata?.title || 'Untitled',
-                            uploadDate: video.LastModified,
-                            uploader: 'Unknown',
-                            classCode: video.Metadata?.classCode || 'Unknown'
-                        };
-                    }
-                }));
-                // Filter videos to only include those with matching class codes
-                videos = videos.concat(videoMetadata.filter(v => 
-                    user.classCodesArray.includes(v.classCode)
-                ));
-            }
-        } else {
-            // For students, get only their own videos
-            const command = new ListObjectsV2Command({
-                Bucket: 'aws-testing-prolerus',
-                Prefix: `${user.schoolName}/videos/${user.email}/`
-            });
-            const data = await s3.send(command);
-            const videoMetadata = (data.Contents || []).map(video => ({
-                key: video.Key,
-                url: `https://${bucketName}.s3.amazonaws.com/${video.Key}`,
-                title: video.Metadata?.title || 'Untitled',
-                uploadDate: video.LastModified,
-                uploader: user.firstName,
-                classCode: video.Metadata?.classCode || 'Unknown'
-            }));
-            videos = videoMetadata;
-        }
+        const videos = await listVideos(
+            user.email,
+            user.accountType,
+            user.schoolName,
+            user.classCodesArray
+        );
 
         res.status(200).json(videos);
     } catch (error) {
