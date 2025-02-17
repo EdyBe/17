@@ -1,4 +1,4 @@
-const { s3, HeadBucketCommand, GetObjectCommand, PutObjectCommand, ListObjectsV2Command, DeleteObjectCommand } = require('./awsS3');
+const { s3, HeadBucketCommand, HeadObjectCommand, GetObjectCommand, PutObjectCommand, ListObjectsV2Command, DeleteObjectCommand } = require('./awsS3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const bucketName = 'aws-testing-prolerus';
 
@@ -234,7 +234,7 @@ async function listVideos(userEmail, accountType, schoolName, classCodes = []) {
                         Expires: 3600 // URL valid for 1 hour
                     }));
 
-                    // Verify the video exists
+                    // Verify the video exists with better error handling
                     try {
                         const headCommand = new HeadObjectCommand({
                             Bucket: bucketName,
@@ -242,6 +242,7 @@ async function listVideos(userEmail, accountType, schoolName, classCodes = []) {
                         });
                         await s3.send(headCommand);
                         
+                        console.log('Video file verified:', videoKey);
                         return {
                             ...metadata,
                             videoUrl,
@@ -249,8 +250,19 @@ async function listVideos(userEmail, accountType, schoolName, classCodes = []) {
                             mimeType: metadata.contentType || 'video/mp4'
                         };
                     } catch (error) {
-                        console.error('Video file not found:', videoKey);
-                        return null;
+                        console.error('Video file verification failed:', {
+                            key: videoKey,
+                            error: error.message
+                        });
+                        // Return the video metadata even if verification fails
+                        // to allow debugging and error handling in the UI
+                        return {
+                            ...metadata,
+                            videoUrl,
+                            videoKey,
+                            mimeType: metadata.contentType || 'video/mp4',
+                            error: 'Video verification failed'
+                        };
                     }
                 } catch (error) {
                     console.error('Error parsing video metadata:', error);
