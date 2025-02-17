@@ -132,6 +132,12 @@ app.post('/upload', upload.single('video'), async (req, res) => {
             return res.status(404).json({ message: 'User not found' });
         }
 
+        // Validate user object
+        if (!user || !user._id) {
+            console.log('Invalid user object:', user);
+            return res.status(400).json({ message: 'Invalid user data' });
+        }
+
         // Prepare video data for storage
         const videoData = {
             title: req.body.title,
