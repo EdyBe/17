@@ -162,10 +162,10 @@ async function readUser(email) {
 
         // Get user's videos
         const videos = await listVideos(
-            user.email, 
-            user.accountType, 
             user.schoolName, 
-            user.classCodesArray
+            user.classCodesArray,
+            user.email  
+            
         );
 
         return { user, videos };
@@ -175,10 +175,10 @@ async function readUser(email) {
     }
 }
 
-async function listVideos(userEmail, accountType, schoolName, classCodes = []) {
+async function listVideos(schoolName, classCodes, userEmail = []) {
     try {
         let videos = [];
-        const metadataPrefix = accountType === 'teacher' 
+        const metadataPrefix = accountType === 'student' 
             ? `videos/${schoolName}/` 
             : `videos/${schoolName}/${userEmail}/`;
 
