@@ -91,11 +91,13 @@ dropdownContent.addEventListener('mouseenter', function() {
 dropdownContent.addEventListener('mouseleave', function() {
     dropdownContent.style.display = "none";
 });
-
-        function createVideoItem(video, studentFolderContent) {
+             function createVideoItem(video, studentFolderContent) {
             const videoItem = document.createElement('div');
             videoItem.className = 'video-item';
 
+            console.log('Video URL:', video.videoUrl);
+            console.log('MIME Type:', video.mimeType);
+            
             const videoPlayer = document.createElement('video');
             videoPlayer.controls = true;
             const source = document.createElement('source');
