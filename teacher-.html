@@ -98,22 +98,21 @@ dropdownContent.addEventListener('mouseleave', function() {
 
             const videoPlayer = document.createElement('video');
             videoPlayer.controls = true;
-            const videoId = video._id;
-            videoPlayer.src = `/videos.files/${videoId}`;
-            videoPlayer.type = video.metadata.contentType;
+            videoPlayer.src = video.url;
+            videoPlayer.type = 'video/mp4';
 
             const subject = document.createElement('h3');
             subject.className = 'video-subject';
-            subject.innerText = video.metadata.subject;
+            subject.innerText = video.subject;
 
             const emailDisplay = document.createElement('p');
             emailDisplay.className = 'video-email';
-            emailDisplay.innerText = video.metadata.userEmail;
+            emailDisplay.innerText = video.userEmail;
 
             const blueIcon = document.createElement('span');
             blueIcon.className = 'new-video-icon';
             blueIcon.innerText = '🟡';
-            if (!video.metadata.viewed) {
+            if (!video.viewed) {
                 videoItem.appendChild(blueIcon);
             }
 
@@ -122,8 +121,8 @@ dropdownContent.addEventListener('mouseleave', function() {
             videoItem.appendChild(emailDisplay);
 
             const downloadLink = document.createElement('a');
-            downloadLink.href = `/videos.files/${videoId}`;
-            downloadLink.download = videoId;
+            downloadLink.href = video.url;
+            downloadLink.download = video.title || 'video';
             downloadLink.innerHTML = '<i class="fas fa-download"></i>';
             downloadLink.className = 'download-icon';
             videoItem.appendChild(downloadLink);
@@ -141,7 +140,7 @@ dropdownContent.addEventListener('mouseleave', function() {
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ id: videoId })
+                    body: JSON.stringify({ id: video._id })
                 })
                 .catch(error => {
                     console.error('Error marking video as viewed:', error);
@@ -152,7 +151,7 @@ dropdownContent.addEventListener('mouseleave', function() {
         function filterAndDisplayVideos(videos, folderContent, searchTerm = '') {
             folderContent.innerHTML = '';
             const filteredVideos = videos.filter(video =>
-                video.metadata.subject.toLowerCase().includes(searchTerm.toLowerCase())
+                video.subject.toLowerCase().includes(searchTerm.toLowerCase())
             );
             filteredVideos.forEach(video => createVideoItem(video, folderContent));
         }
@@ -251,8 +250,8 @@ const capitalizedFirstName = firstName.charAt(0).toUpperCase() + firstName.slice
                     // Group videos by class code and student
                     const groupedVideos = {};
                     videos.forEach(video => {
-                        const classCode = video.metadata.classCode;
-                        const studentEmail = video.metadata.userEmail;
+                        const classCode = video.classCode;
+                        const studentEmail = video.userEmail;
                         
                         if (!groupedVideos[classCode]) {
                             groupedVideos[classCode] = {};
