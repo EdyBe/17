@@ -132,8 +132,19 @@ async function readUser(email) {
             Key: `users/${email}.json`
         });
         const userData = await s3.send(getUserCommand);
-
-        const user = JSON.parse(userData.Body.toString());
+        
+        // Convert the ReadableStream to string and parse JSON
+        const chunks = [];
+        for await (const chunk of userData.Body) {
+            chunks.push(chunk);
+        }
+        const userString = Buffer.concat(chunks).toString('utf8');
+        
+        // Parse JSON and ensure required fields exist
+        const user = JSON.parse(userString);
+        if (!user.email || !user.firstName || !user.accountType) {
+            throw new Error('Invalid user data format');
+        }
 
         // Get user's videos
         const videos = await listVideos(user.email);
