@@ -375,7 +375,8 @@ app.get('/videos', async (req, res) => {
             title: video.title,
             subject: video.subject,
             classCode: video.classCode,
-            url: video.videoUrl, // Use the signed URL from S3
+            videoUrl: video.videoUrl, // Use the signed URL from S3
+            mimeType: video.mimeType,
             viewed: video.viewed,
             studentName: video.studentName || user.firstName,
             schoolName: user.schoolName,
